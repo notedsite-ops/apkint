@@ -1,2 +1,3 @@
 # apkint
-APK web-server
+APK HTML/java based web-server
+https://fishnerds.neocities.org/apkint
