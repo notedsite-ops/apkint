@@ -3,27 +3,20 @@ const multer = require('multer');
 const cors = require('cors');
 const ApkReader = require('adbkit-apkreader');
 const fs = require('fs');
-const path = require('path');
 
 const app = express();
-// Save uploads temporarily to a folder named 'uploads'
+// Save uploads temporarily
 const upload = multer({ dest: 'uploads/' });
 
+// Enable CORS so Neocities can talk to this server
 app.use(cors());
 
-// 1. Serve the HTML file when someone visits the site
+// FIX: Instead of looking for index.html, just show a text message.
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.send('APKint Backend is Running. Go to fishnerds.neocities.org/apkint to use it.');
 });
 
-// 2. Serve the default APK image if requested
-app.get('/apk.png', (req, res) => {
-    // If you don't have a real apk.png file, this sends a 404, 
-    // but the app will still work.
-    res.status(404).send('Not found');
-});
-
-// 3. The API Endpoint: Interpret and "Rough Run"
+// The API Endpoint
 app.post('/api/interpret', upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file' });
 
@@ -31,9 +24,8 @@ app.post('/api/interpret', upload.single('file'), async (req, res) => {
         const reader = await ApkReader.open(req.file.path);
         const manifest = await reader.readManifest();
         
-        // Extract Label (Name) and Package ID
+        // Extract Info
         const label = manifest.application.label || "Unknown App";
-        const pkg = manifest.package;
         
         // Extract Icon
         let iconBase64 = null;
@@ -44,22 +36,20 @@ app.post('/api/interpret', upload.single('file'), async (req, res) => {
             } catch (e) { /* Icon error, ignore */ }
         }
 
-        // Cleanup: Delete the uploaded file to save space
+        // Cleanup
         fs.unlinkSync(req.file.path);
 
-        // Send back the data (The "Boot" result)
         res.json({
             success: true,
-            appName: typeof label === 'string' ? label : pkg,
+            appName: typeof label === 'string' ? label : manifest.package,
             icon: iconBase64
         });
 
     } catch (e) {
-        // Cleanup on error
         if(req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).json({ error: 'Failed to boot APK' });
+        res.status(500).json({ error: 'Failed to parse APK' });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`APKint is ready.`));
+app.listen(PORT, () => console.log(`APKint Server Ready on port ${PORT}`));
